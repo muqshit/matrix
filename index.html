@@ -105,6 +105,8 @@
     cursor:pointer; font-size:12.5px; padding:2px 4px;
   }
   .conv-item .row-actions button:hover{ color: var(--text); }
+  .conv-item .row-actions button.pinned{ color: var(--accent); opacity:1; }
+  .conv-item .msg-time{ font-size:10.5px; color: var(--text-muted); margin-left:8px; opacity:.75; flex-shrink:0; }
   .empty-search{ padding:14px 10px; font-size:12.5px; color:var(--text-muted); text-align:center; }
 
   .sidebar-footer{
@@ -195,7 +197,8 @@
     border-radius:8px; padding:4px 8px; color:var(--text-muted);
   }
 
-  .msg-actions{ display:flex; gap:10px; margin-top:6px; }
+  .msg-actions{ display:flex; gap:10px; margin-top:6px; align-items:center; }
+  .msg-time{ font-size:11px; color: var(--text-muted); opacity:.7; }
   .msg-actions button{
     background:none; border:none; color:var(--text-muted); font-size:12px;
     cursor:pointer; opacity:.7;
@@ -306,6 +309,12 @@
   .modal-actions .cancel-btn{ background:var(--surface-2); color:var(--text-muted); }
 
   .sidebar-backdrop{ display:none; }
+  .lightbox-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:200;
+    display:none; align-items:center; justify-content:center; padding:20px; cursor:zoom-out;
+  }
+  .lightbox-overlay.show{ display:flex; }
+  .lightbox-overlay img{ max-width:90vw; max-height:90vh; border-radius:8px; }
 
   ::-webkit-scrollbar{ width:8px; }
   ::-webkit-scrollbar-thumb{ background: var(--border); border-radius:8px; }
@@ -335,6 +344,7 @@
   <div class="sidebar" id="sidebar">
     <div class="brand"><img src="logo.png" alt="Matrix logo" class="brand-mark">Matrix</div>
     <button class="new-chat" id="newChatBtn">＋ New chat</button>
+    <button class="instructions-btn" id="clearAllBtn" style="margin:0 16px 8px;">🗑 Clear all chats</button>
     <div class="search-box"><input type="text" id="searchConvs" placeholder="Search chats..."></div>
     <div class="conv-list" id="convList"></div>
     <div class="sidebar-footer">
@@ -389,6 +399,10 @@
   </div>
 </div>
 
+<div class="lightbox-overlay" id="lightboxOverlay">
+  <img id="lightboxImg" src="" alt="Full size image">
+</div>
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
 <script>
@@ -408,6 +422,11 @@ let recognizer = null;
 let isRecording = false;
 
 function uid(){ return Math.random().toString(36).slice(2,10); }
+function formatTime(ts){
+  if (!ts) return "";
+  const d = new Date(ts);
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
 function escapeHtml(s){
   return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
 }
@@ -456,7 +475,9 @@ function convMatchesSearch(c, term){
 function renderSidebar(){
   const list = document.getElementById("convList");
   list.innerHTML = "";
-  const filtered = conversations.filter(c => convMatchesSearch(c, searchTerm));
+  const filtered = conversations
+    .filter(c => convMatchesSearch(c, searchTerm))
+    .sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
 
   if (filtered.length === 0){
     list.innerHTML = `<div class="empty-search">No chats found</div>`;
@@ -467,12 +488,20 @@ function renderSidebar(){
     const item = document.createElement("div");
     item.className = "conv-item" + (c.id === activeId ? " active" : "");
     item.innerHTML = `
-      <span class="title">${escapeHtml(c.title)}</span>
+      <span class="title">${c.pinned ? "📌 " : ""}${escapeHtml(c.title)}</span>
       <div class="row-actions">
+        <button class="pin-btn${c.pinned ? " pinned" : ""}" title="Pin">📌</button>
         <button class="rename-btn" title="Rename">✎</button>
         <button class="del" title="Delete">✕</button>
       </div>`;
     item.querySelector(".title").onclick = () => { activeId = c.id; saveState(); renderSidebar(); renderMessages(); if (isMobile()) closeSidebar(); };
+
+    item.querySelector(".pin-btn").onclick = (e) => {
+      e.stopPropagation();
+      c.pinned = !c.pinned;
+      saveState();
+      renderSidebar();
+    };
 
     item.querySelector(".rename-btn").onclick = (e) => {
       e.stopPropagation();
@@ -638,6 +667,7 @@ function renderMessages(){
           <div class="bubble">${renderMarkdown(m.content)}</div>
         </div>
         <div class="msg-actions">
+          <span class="msg-time">${formatTime(m.ts)}</span>
           ${m.role === "assistant" ? `<button class="copy-btn">Copy</button>` : ""}
           ${m.role === "user" ? `<button class="edit-btn">Edit</button>` : ""}
           ${isLastAssistant ? `<button class="regen-btn">↻ Regenerate</button>` : ""}
@@ -651,9 +681,18 @@ function renderMessages(){
   });
   attachCodeCopyHandlers(box);
   renderMathIn(box);
+  box.querySelectorAll(".attachments img").forEach(img => {
+    img.onclick = () => {
+      document.getElementById("lightboxImg").src = img.src;
+      document.getElementById("lightboxOverlay").classList.add("show");
+    };
+  });
   if (autoScroll) box.scrollTop = box.scrollHeight;
   updateScrollButton();
 }
+document.getElementById("lightboxOverlay").onclick = () => {
+  document.getElementById("lightboxOverlay").classList.remove("show");
+};
 
 function startEdit(idx){
   const conv = getActive();
@@ -676,7 +715,7 @@ function startEdit(idx){
     const newText = textarea.value.trim();
     if (!newText) return;
     conv.messages = conv.messages.slice(0, idx);
-    conv.messages.push({ role: "user", content: newText, attachments: m.attachments || [] });
+    conv.messages.push({ role: "user", content: newText, attachments: m.attachments || [], ts: Date.now() });
     saveState();
     renderMessages();
     runCompletion();
@@ -870,7 +909,7 @@ async function sendMessage(){
   if (!conv) { newConversation(); conv = getActive(); }
   if (conv.messages.length === 0) conv.title = (text || "New attachment").slice(0, 32);
 
-  conv.messages.push({ role: "user", content: text, attachments: pendingFiles.slice() });
+  conv.messages.push({ role: "user", content: text, attachments: pendingFiles.slice(), ts: Date.now() });
   pendingFiles = [];
   renderPendingAttachments();
   input.value = "";
@@ -904,7 +943,7 @@ async function runCompletion(){
     }
 
     removeTyping();
-    conv.messages.push({ role: "assistant", content: "" });
+    conv.messages.push({ role: "assistant", content: "", ts: Date.now() });
     renderMessages();
 
     const reader = res.body.getReader();
@@ -967,6 +1006,11 @@ document.getElementById("searchConvs").addEventListener("input", function(){
 });
 
 document.getElementById("newChatBtn").onclick = newConversation;
+document.getElementById("clearAllBtn").onclick = () => {
+  if (!confirm("Delete all conversations? This can't be undone.")) return;
+  conversations = [];
+  newConversation();
+};
 
 function isMobile(){ return window.innerWidth <= 768; }
 function openSidebar(){
@@ -984,16 +1028,33 @@ document.getElementById("sidebarToggle").onclick = () => {
 };
 document.getElementById("sidebarBackdrop").onclick = closeSidebar;
 
+const THEME_KEY = "matrix_theme_pref_v1";
+function applyTheme(theme){
+  document.body.setAttribute("data-theme", theme);
+  document.getElementById("themeToggle").textContent = theme === "dark" ? "☀️ Light mode" : "🌙 Dark mode";
+}
+function initTheme(){
+  const saved = localStorage.getItem(THEME_KEY);
+  if (saved) { applyTheme(saved); return; }
+  const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  applyTheme(prefersDark ? "dark" : "light");
+}
+if (window.matchMedia) {
+  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+    if (!localStorage.getItem(THEME_KEY)) applyTheme(e.matches ? "dark" : "light");
+  });
+}
 document.getElementById("themeToggle").onclick = () => {
-  const body = document.body;
-  const dark = body.getAttribute("data-theme") === "dark";
-  body.setAttribute("data-theme", dark ? "light" : "dark");
-  document.getElementById("themeToggle").textContent = dark ? "🌙 Dark mode" : "☀️ Light mode";
+  const dark = document.body.getAttribute("data-theme") === "dark";
+  const next = dark ? "light" : "dark";
+  applyTheme(next);
+  localStorage.setItem(THEME_KEY, next);
 };
 
 // ---------- Init ----------
 loadState();
 loadInstructions();
+initTheme();
 if (conversations.length === 0) newConversation();
 else { renderSidebar(); renderMessages(); }
 if (isMobile()) closeSidebar();
