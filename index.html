@@ -44,9 +44,10 @@
     background: var(--bg);
     color: var(--text);
     height:100vh;
+    height:100dvh;
     overflow:hidden;
   }
-  .app{ display:flex; height:100vh; }
+  .app{ display:flex; height:100vh; height:100dvh; }
 
   .sidebar{
     width: var(--sidebar-w);
@@ -126,6 +127,10 @@
   .theme-toggle{
     background:none; border:1px solid var(--border); border-radius:9px;
     padding:7px; cursor:pointer; color:var(--text-muted); font-size:13px;
+  }
+  .made-by{
+    text-align:center; font-size:11px; color: var(--text-muted);
+    padding-top:4px; opacity:.8;
   }
 
   .main{ flex:1; display:flex; flex-direction:column; min-width:0; }
@@ -272,7 +277,7 @@
 
   @media (max-width: 768px){
     .sidebar{
-      position: fixed; top:0; left:0; height:100vh; z-index:50;
+      position: fixed; top:0; left:0; height:100vh; height:100dvh; z-index:50;
       box-shadow: 0 0 24px rgba(0,0,0,.2);
     }
     .sidebar-backdrop{
@@ -306,6 +311,7 @@
         <option value="claude-fable-5">Matrix Vision</option>
       </select>
       <button class="theme-toggle" id="themeToggle">🌙 Dark mode</button>
+      <div class="made-by">Made by ABM Mahiuzzaman Muqshit</div>
     </div>
   </div>
   <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
