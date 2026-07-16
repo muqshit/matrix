@@ -10,43 +10,51 @@
 <meta name="theme-color" content="#4F5FFF">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Matrix">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
 <style>
   :root{
-    --bg: #F6F7FA;
+    --bg: #FAFAF8;
     --surface: #FFFFFF;
-    --surface-2: #EEF0F5;
-    --border: #E2E5EC;
-    --text: #191B23;
-    --text-muted: #6B7080;
-    --accent: #4F5FFF;
-    --accent-hover: #3F4EEF;
-    --accent-soft: #EDEFFF;
-    --user-bubble: #4F5FFF;
+    --surface-2: #F1F0EC;
+    --border: #E4E2DC;
+    --text: #17181D;
+    --text-muted: #6E6F76;
+    --accent: #6A4DFF;
+    --accent-hover: #5B3EF0;
+    --accent-soft: #EFEBFF;
+    --accent-2: #FFB454;
+    --user-bubble: #6A4DFF;
     --user-text: #FFFFFF;
     --assistant-bubble: #FFFFFF;
     --danger: #E5484D;
-    --radius: 14px;
+    --radius: 12px;
     --sidebar-w: 280px;
+    --font-display: "Space Grotesk", "Inter", sans-serif;
+    --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
   }
   [data-theme="dark"]{
-    --bg: #16171D;
-    --surface: #1E1F27;
-    --surface-2: #262832;
-    --border: #333542;
-    --text: #ECEDF2;
-    --text-muted: #8A8D9A;
-    --accent: #7C8CFF;
-    --accent-hover: #8E9CFF;
-    --accent-soft: #262A45;
-    --user-bubble: #7C8CFF;
-    --user-text: #12131A;
-    --assistant-bubble: #23252E;
+    --bg: #121218;
+    --surface: #1B1B24;
+    --surface-2: #23232F;
+    --border: #34343F;
+    --text: #EDEDF2;
+    --text-muted: #93939F;
+    --accent: #8C74FF;
+    --accent-hover: #9C86FF;
+    --accent-soft: #262238;
+    --accent-2: #FFC069;
+    --user-bubble: #8C74FF;
+    --user-text: #14131C;
+    --assistant-bubble: #1F1F2B;
   }
   *{box-sizing:border-box;}
   body{
     margin:0;
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--font-body);
     background: var(--bg);
     color: var(--text);
     height:100vh;
@@ -63,12 +71,14 @@
     flex-direction:column;
     flex-shrink:0;
     transition: margin-left .2s ease;
+    overflow-y:auto;
   }
   .sidebar.collapsed{ margin-left: calc(-1 * var(--sidebar-w)); }
   .brand{
     display:flex; align-items:center; gap:10px;
     padding:18px 16px 8px;
-    font-weight:700; font-size:17px; letter-spacing:-0.02em;
+    font-family: var(--font-display);
+    font-weight:700; font-size:19px; letter-spacing:-0.01em;
   }
   .brand-mark{
     width:26px; height:26px; border-radius:8px;
@@ -88,7 +98,7 @@
     width:100%; padding:8px 10px; border-radius:9px; border:1px solid var(--border);
     background: var(--surface-2); color:var(--text); font-size:13px;
   }
-  .conv-list{ flex:1; overflow-y:auto; padding:4px 10px; }
+  .conv-list{ flex:1; overflow-y:auto; min-height:0; padding:4px 10px; }
   .conv-item{
     display:flex; align-items:center; justify-content:space-between;
     padding:9px 10px; border-radius:10px; cursor:pointer;
@@ -180,7 +190,7 @@
     background:#0F1117; color:#E5E7EB; padding:12px 12px; border-radius:10px;
     overflow-x:auto; font-size:13px; margin:8px 0; position:relative;
   }
-  .bubble code{ font-family: "SFMono-Regular", Consolas, monospace; }
+  .bubble code{ font-family: var(--font-mono); }
   .bubble :not(pre) > code{ background: var(--surface-2); padding:2px 5px; border-radius:5px; font-size:.9em;}
   .code-wrap{ position:relative; }
   .code-copy-btn{
@@ -209,7 +219,7 @@
   }
 
   .msg-actions{ display:flex; gap:10px; margin-top:6px; align-items:center; }
-  .msg-time{ font-size:11px; color: var(--text-muted); opacity:.7; }
+  .msg-time{ font-family: var(--font-mono); font-size:10.5px; color: var(--text-muted); opacity:.7; }
   .msg-actions button{
     background:none; border:none; color:var(--text-muted); font-size:12px;
     cursor:pointer; opacity:.7;
@@ -231,8 +241,13 @@
   .empty-state{
     flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
     color:var(--text-muted); text-align:center; gap:10px; padding:20px;
+    position:relative; overflow:hidden;
   }
-  .empty-state h1{ font-size:22px; color:var(--text); margin:0; }
+  .empty-state canvas{
+    position:absolute; inset:0; width:100%; height:100%; z-index:0; opacity:.55;
+  }
+  .empty-state .empty-content{ position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .empty-state h1{ font-family: var(--font-display); font-size:26px; font-weight:700; color:var(--text); margin:0; letter-spacing:-0.01em; }
   .suggestions{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; max-width:600px; margin-top:10px;}
   .suggestion{
     border:1px solid var(--border); background:var(--surface); padding:10px 14px;
@@ -405,7 +420,7 @@
       <button class="icon-btn" id="sidebarToggle">☰</button>
       <div class="chat-title" id="chatTitle">New chat</div>
       <button class="export-btn" id="copyConvBtn">📋 Copy</button>
-      <button class="export-btn" id="exportBtn">⬇ Export</button>
+      <button class="export-btn" id="exportBtn">⬇ Export PDF</button>
     </div>
 
     <div class="messages" id="messages"></div>
@@ -442,6 +457,7 @@
   <img id="lightboxImg" src="" alt="Full size image">
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
 <script>
@@ -461,6 +477,54 @@ let autoScroll = true;
 let customInstructions = "";
 let recognizer = null;
 let isRecording = false;
+
+let matrixGridHandle = null;
+function startMatrixGrid(){
+  const canvas = document.getElementById("matrixGrid");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  function resize(){
+    canvas.width = canvas.offsetWidth * devicePixelRatio;
+    canvas.height = canvas.offsetHeight * devicePixelRatio;
+  }
+  resize();
+
+  const spacing = 34 * devicePixelRatio;
+  const dotR = 1.6 * devicePixelRatio;
+  const cells = [];
+  const cols = Math.ceil(canvas.width / spacing) + 1;
+  const rows = Math.ceil(canvas.height / spacing) + 1;
+  for (let r = 0; r < rows; r++){
+    for (let c = 0; c < cols; c++){
+      cells.push({ x: c * spacing, y: r * spacing, pulse: 0 });
+    }
+  }
+
+  const isDark = document.body.getAttribute("data-theme") === "dark";
+  const baseColor = isDark ? "148,148,159" : "180,178,170";
+  const accentColor = "106,77,255";
+  const accent2Color = "255,180,84";
+
+  function draw(){
+    if (!document.getElementById("matrixGrid")) { cancelAnimationFrame(matrixGridHandle); return; }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    cells.forEach(cell => {
+      if (!reduceMotion && Math.random() < 0.0015) cell.pulse = 1;
+      if (cell.pulse > 0) cell.pulse -= 0.015;
+      const t = Math.max(0, cell.pulse);
+      const r = dotR + t * dotR * 2.5;
+      const color = t > 0.5 ? accentColor : accent2Color;
+      ctx.beginPath();
+      ctx.arc(cell.x, cell.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = t > 0 ? `rgba(${color},${0.15 + t * 0.5})` : `rgba(${baseColor},0.35)`;
+      ctx.fill();
+    });
+    if (!reduceMotion) matrixGridHandle = requestAnimationFrame(draw);
+  }
+  draw();
+}
 
 function uid(){ return Math.random().toString(36).slice(2,10); }
 function formatTime(ts){
@@ -723,17 +787,21 @@ function renderMessages(){
   if (!conv || conv.messages.length === 0) {
     box.innerHTML = `
       <div class="empty-state">
-        <h1>What can I help with?</h1>
-        <div class="suggestions">
-          <div class="suggestion">Explain how black holes form</div>
-          <div class="suggestion">Write a Python function to sort a list</div>
-          <div class="suggestion">Give me dinner ideas for tonight</div>
-          <div class="suggestion">Help me draft a polite email</div>
+        <canvas id="matrixGrid"></canvas>
+        <div class="empty-content">
+          <h1>What can I help with?</h1>
+          <div class="suggestions">
+            <div class="suggestion">Explain how black holes form</div>
+            <div class="suggestion">Write a Python function to sort a list</div>
+            <div class="suggestion">Give me dinner ideas for tonight</div>
+            <div class="suggestion">Help me draft a polite email</div>
+          </div>
         </div>
       </div>`;
     box.querySelectorAll(".suggestion").forEach(s => {
       s.onclick = () => { document.getElementById("input").value = s.textContent; sendMessage(); };
     });
+    startMatrixGrid();
     return;
   }
 
@@ -956,20 +1024,103 @@ document.getElementById("copyConvBtn").onclick = () => {
   conv.messages.forEach(m => { text += `${m.role === "user" ? "You" : "Matrix"}: ${m.content}\n\n`; });
   navigator.clipboard.writeText(text.trim());
 };
-document.getElementById("exportBtn").onclick = () => {
+function loadImageAsDataURL(src){
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = img.width; canvas.height = img.height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+document.getElementById("exportBtn").onclick = async () => {
   const conv = getActive();
   if (!conv || conv.messages.length === 0) return;
-  let text = `# ${conv.title}\n\n`;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 44;
+  const maxWidth = pageWidth - margin * 2;
+  let y = margin;
+
+  function addFooter(){
+    const pageNum = doc.internal.getCurrentPageInfo().pageNumber;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(150);
+    doc.text("Made by ABM Mahiuzzaman Muqshit — Matrix AI", pageWidth / 2, pageHeight - 24, { align: "center" });
+    doc.text(String(pageNum), pageWidth - margin, pageHeight - 24, { align: "right" });
+  }
+  function ensureSpace(neededHeight){
+    if (y + neededHeight > pageHeight - 55) {
+      addFooter();
+      doc.addPage();
+      y = margin;
+    }
+  }
+
+  try {
+    const logoDataUrl = await loadImageAsDataURL("logo.png");
+    doc.addImage(logoDataUrl, "PNG", margin, y, 28, 28);
+  } catch (e) { /* logo not available, continue without it */ }
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(17);
+  doc.setTextColor(20);
+  doc.text("Matrix", margin + 36, y + 19);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(130);
+  doc.text(new Date().toLocaleString(), pageWidth - margin, y + 19, { align: "right" });
+  y += 46;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.setTextColor(20);
+  doc.text(conv.title, margin, y);
+  y += 10;
+  doc.setDrawColor(225);
+  doc.line(margin, y, pageWidth - margin, y);
+  y += 22;
+
   conv.messages.forEach(m => {
-    text += `**${m.role === "user" ? "You" : "Matrix"}:**\n${m.content}\n\n`;
+    const label = m.role === "user" ? "You" : "Matrix";
+    const timeStr = m.ts ? "   " + formatTime(m.ts) : "";
+
+    ensureSpace(20);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.setTextColor(m.role === "user" ? 79 : 20, m.role === "user" ? 95 : 20, m.role === "user" ? 255 : 20);
+    doc.text(label, margin, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(150);
+    doc.text(timeStr, margin + doc.getTextWidth(label), y);
+    y += 15;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10.5);
+    doc.setTextColor(35);
+    const lines = doc.splitTextToSize(m.content || "", maxWidth);
+    lines.forEach(line => {
+      ensureSpace(14);
+      doc.text(line, margin, y);
+      y += 14;
+    });
+    y += 12;
   });
-  const blob = new Blob([text], { type: "text/markdown" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = conv.title.replace(/[^a-z0-9]/gi, "_").slice(0, 40) + ".md";
-  a.click();
-  URL.revokeObjectURL(url);
+
+  addFooter();
+  doc.save(conv.title.replace(/[^a-z0-9]/gi, "_").slice(0, 40) + ".pdf");
 };
 
 // ---------- Sending ----------
