@@ -333,6 +333,17 @@
   }
   .modal-actions .save-btn{ background:var(--accent); color:#fff; }
   .modal-actions .cancel-btn{ background:var(--surface-2); color:var(--text-muted); }
+  .settings-modal{ max-height:85vh; overflow-y:auto; }
+  .settings-label{
+    display:block; font-size:11px; color:var(--text-muted); font-weight:600;
+    text-transform:uppercase; letter-spacing:.04em; margin:14px 0 6px;
+  }
+  .settings-modal select{
+    width:100%; padding:8px 10px; border-radius:9px; border:1px solid var(--border);
+    background: var(--surface-2); color:var(--text); font-size:13px;
+  }
+  .settings-row{ display:flex; gap:8px; margin-top:14px; }
+  .settings-row button{ flex:1; }
 
   .sidebar-backdrop{ display:none; }
   .lightbox-overlay{
@@ -378,38 +389,7 @@
     <div class="search-box"><input type="text" id="searchConvs" placeholder="Search chats..."></div>
     <div class="conv-list" id="convList"></div>
     <div class="sidebar-footer">
-      <label>Model</label>
-      <select id="modelSelect">
-        <option value="gpt-5.5">Matrix Turbo</option>
-        <option value="gpt-5.4">Matrix Pro</option>
-        <option value="gpt-5.4-mini">Matrix Fast</option>
-        <option value="claude-sonnet-4-6">Matrix Reasoning</option>
-        <option value="claude-fable-5">Matrix Vision</option>
-      </select>
-      <label>Persona</label>
-      <select id="personaSelect">
-        <option value="">Default</option>
-        <option value="coding">Coding helper</option>
-        <option value="writer">Creative writer</option>
-        <option value="concise">Concise assistant</option>
-        <option value="tutor">Patient tutor</option>
-      </select>
-      <label>Text size</label>
-      <select id="fontSizeSelect">
-        <option value="13px">Small</option>
-        <option value="14.5px" selected>Medium</option>
-        <option value="16.5px">Large</option>
-      </select>
-      <label>Spacing</label>
-      <select id="densitySelect">
-        <option value="comfortable" selected>Comfortable</option>
-        <option value="compact">Compact</option>
-      </select>
-      <button class="instructions-btn" id="instructionsBtn">⚙ Custom instructions</button>
-      <button class="instructions-btn" id="importBtn">⬆ Import chat</button>
-      <input type="file" id="importFileInput" accept=".md" style="display:none">
-      <button class="theme-toggle" id="themeToggle">🌙 Dark mode</button>
-      <button class="theme-toggle" id="soundToggle">🔔 Sound: On</button>
+      <button class="instructions-btn" id="settingsBtn">⚙ Settings</button>
       <div class="made-by">Made by ABM Mahiuzzaman Muqshit</div>
     </div>
   </div>
@@ -441,14 +421,54 @@
   </div>
 </div>
 
-<div class="modal-overlay" id="instructionsModal">
-  <div class="modal">
-    <h2>Custom instructions</h2>
+<div class="modal-overlay" id="settingsModal">
+  <div class="modal settings-modal">
+    <h2>Settings</h2>
+
+    <label class="settings-label">Model</label>
+    <select id="modelSelect">
+      <option value="gpt-5.5">Matrix Turbo</option>
+      <option value="gpt-5.4">Matrix Pro</option>
+      <option value="gpt-5.4-mini">Matrix Fast</option>
+      <option value="claude-sonnet-4-6">Matrix Reasoning</option>
+      <option value="claude-fable-5">Matrix Vision</option>
+    </select>
+
+    <label class="settings-label">Persona</label>
+    <select id="personaSelect">
+      <option value="">Default</option>
+      <option value="coding">Coding helper</option>
+      <option value="writer">Creative writer</option>
+      <option value="concise">Concise assistant</option>
+      <option value="tutor">Patient tutor</option>
+    </select>
+
+    <label class="settings-label">Text size</label>
+    <select id="fontSizeSelect">
+      <option value="13px">Small</option>
+      <option value="14.5px" selected>Medium</option>
+      <option value="16.5px">Large</option>
+    </select>
+
+    <label class="settings-label">Spacing</label>
+    <select id="densitySelect">
+      <option value="comfortable" selected>Comfortable</option>
+      <option value="compact">Compact</option>
+    </select>
+
+    <label class="settings-label">Custom instructions</label>
     <p class="desc">Tell Matrix how to behave — tone, format, things to always do or avoid. Applies to every chat.</p>
     <textarea id="instructionsText" placeholder="e.g. Keep answers short. Always use bullet points. Be direct and skip pleasantries."></textarea>
+
+    <div class="settings-row">
+      <button class="theme-toggle" id="themeToggle">🌙 Dark mode</button>
+      <button class="theme-toggle" id="soundToggle">🔔 Sound: On</button>
+    </div>
+    <button class="instructions-btn" id="importBtn" style="width:100%; margin-top:8px;">⬆ Import chat</button>
+    <input type="file" id="importFileInput" accept=".md" style="display:none">
+
     <div class="modal-actions">
-      <button class="cancel-btn" id="instructionsCancel">Cancel</button>
-      <button class="save-btn" id="instructionsSave">Save</button>
+      <button class="save-btn" id="settingsClose" style="width:100%;">Done</button>
     </div>
   </div>
 </div>
@@ -1004,16 +1024,15 @@ document.getElementById("micBtn").onclick = () => {
   recognizer.start();
 };
 
-// ---------- Custom instructions modal ----------
-document.getElementById("instructionsBtn").onclick = () => {
+// ---------- Settings modal (consolidates all sidebar config) ----------
+document.getElementById("settingsBtn").onclick = () => {
   document.getElementById("instructionsText").value = customInstructions;
-  document.getElementById("instructionsModal").classList.add("show");
+  document.getElementById("settingsModal").classList.add("show");
 };
-document.getElementById("instructionsCancel").onclick = () => document.getElementById("instructionsModal").classList.remove("show");
-document.getElementById("instructionsSave").onclick = () => {
+document.getElementById("settingsClose").onclick = () => {
   customInstructions = document.getElementById("instructionsText").value.trim();
   saveInstructions();
-  document.getElementById("instructionsModal").classList.remove("show");
+  document.getElementById("settingsModal").classList.remove("show");
 };
 
 // ---------- Export ----------
@@ -1348,7 +1367,7 @@ document.addEventListener("keydown", (e) => {
   }
   if (e.key === "Escape") {
     document.getElementById("lightboxOverlay").classList.remove("show");
-    document.getElementById("instructionsModal").classList.remove("show");
+    document.getElementById("settingsModal").classList.remove("show");
     if (isMobile()) closeSidebar();
   }
 });
