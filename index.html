@@ -295,7 +295,13 @@
   }
   .attach-btn:hover, .mic-btn:hover{ background:var(--surface-2); }
   .mic-btn.recording{ background: var(--danger); color:#fff; animation: pulse 1.2s infinite; }
+  .mic-btn.active{ background: var(--accent); color:#fff; }
   @keyframes pulse{ 0%,100%{ opacity:1;} 50%{ opacity:.6;} }
+  .generated-image{ max-width:320px; width:100%; border-radius:10px; border:1px solid var(--border); display:block; cursor:zoom-in; }
+  .image-gen-loading{
+    display:flex; align-items:center; gap:8px; padding:10px 14px;
+    background: var(--surface-2); border-radius:10px; font-size:13px; color:var(--text-muted);
+  }
   .composer-inner textarea{
     flex:1; border:none; background:none; resize:none; outline:none;
     color: var(--text); font-family:inherit; font-size:14.5px; line-height:1.5;
@@ -412,6 +418,7 @@
         <button class="attach-btn" id="attachBtn" title="Attach file/image">📎</button>
         <input type="file" id="fileInput" multiple style="display:none" accept="image/*,.txt,.md,.csv,.json,.js,.py,.html,.css">
         <button class="mic-btn" id="micBtn" title="Voice input">🎤</button>
+        <button class="mic-btn" id="imageGenBtn" title="Generate an image">🎨</button>
         <textarea id="input" placeholder="Message Matrix..." rows="1"></textarea>
         <button class="send-btn" id="sendBtn">↑</button>
       </div>
@@ -835,19 +842,29 @@ function renderMessages(){
       <div class="bubble-col" data-idx="${idx}">
         <div class="msg-content">
           ${renderAttachmentsPreview(m.attachments)}
-          <div class="bubble">${renderMarkdown(m.content)}</div>
+          ${m.generatedImage ? `<img src="${m.generatedImage}" class="generated-image" alt="${escapeHtml(m.imagePrompt || 'Generated image')}">` : ""}
+          ${m.content ? `<div class="bubble">${renderMarkdown(m.content)}</div>` : ""}
         </div>
         <div class="msg-actions">
           <span class="msg-time">${formatTime(m.ts)}</span>
-          ${m.role === "assistant" ? `<button class="copy-btn">Copy</button><button class="speak-btn">🔊</button>` : ""}
+          ${m.role === "assistant" && m.content ? `<button class="copy-btn">Copy</button><button class="speak-btn">🔊</button>` : ""}
+          ${m.generatedImage ? `<button class="download-img-btn">⬇ Download</button>` : ""}
           ${m.role === "user" ? `<button class="edit-btn">Edit</button>` : ""}
           ${isLastAssistant ? `<button class="regen-btn">↻ Regenerate</button>` : ""}
         </div>
       </div>
     `;
-    if (m.role === "assistant") {
+    if (m.role === "assistant" && m.content) {
       row.querySelector(".copy-btn").onclick = () => navigator.clipboard.writeText(m.content);
       row.querySelector(".speak-btn").onclick = (e) => toggleSpeak(m.content, e.currentTarget);
+    }
+    if (m.generatedImage) {
+      row.querySelector(".download-img-btn").onclick = () => {
+        const a = document.createElement("a");
+        a.href = m.generatedImage;
+        a.download = "matrix-image-" + Date.now() + ".png";
+        a.click();
+      };
     }
     if (m.role === "user") row.querySelector(".edit-btn").onclick = () => startEdit(idx);
     if (isLastAssistant) row.querySelector(".regen-btn").onclick = () => regenerateLast();
@@ -855,7 +872,7 @@ function renderMessages(){
   });
   attachCodeCopyHandlers(box);
   renderMathIn(box);
-  box.querySelectorAll(".attachments img").forEach(img => {
+  box.querySelectorAll(".attachments img, .generated-image").forEach(img => {
     img.onclick = () => {
       document.getElementById("lightboxImg").src = img.src;
       document.getElementById("lightboxOverlay").classList.add("show");
@@ -1024,6 +1041,59 @@ document.getElementById("micBtn").onclick = () => {
   recognizer.start();
 };
 
+// ---------- Image generation mode ----------
+let imageGenMode = false;
+document.getElementById("imageGenBtn").onclick = () => {
+  imageGenMode = !imageGenMode;
+  document.getElementById("imageGenBtn").classList.toggle("active", imageGenMode);
+  document.getElementById("input").placeholder = imageGenMode
+    ? "Describe the image you want to create..."
+    : "Message Matrix...";
+};
+
+async function generateImage(prompt){
+  const box = document.getElementById("messages");
+  const loadingRow = document.createElement("div");
+  loadingRow.className = "msg-row assistant";
+  loadingRow.id = "imageGenLoadingRow";
+  loadingRow.innerHTML = `<div class="avatar assistant">M</div><div class="image-gen-loading">🎨 Generating your image...</div>`;
+  box.appendChild(loadingRow);
+  if (autoScroll) box.scrollTop = box.scrollHeight;
+
+  const conv = getActive();
+  try {
+    const res = await fetch("/.netlify/functions/image", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt, n: 1, size: "1024x1024" })
+    });
+    const data = await res.json();
+    document.getElementById("imageGenLoadingRow")?.remove();
+
+    if (!res.ok || data.error) {
+      throw new Error((data.error && data.error.message) || "Image generation failed (" + res.status + ")");
+    }
+
+    const item = data.data && data.data[0];
+    const imageUrl = item && (item.url || (item.b64_json ? "data:image/png;base64," + item.b64_json : null));
+    if (!imageUrl) throw new Error("No image returned.");
+
+    conv.messages.push({
+      role: "assistant",
+      content: "",
+      ts: Date.now(),
+      generatedImage: imageUrl,
+      imagePrompt: prompt
+    });
+  } catch (err) {
+    document.getElementById("imageGenLoadingRow")?.remove();
+    conv.messages.push({ role: "assistant", content: "⚠️ " + err.message, ts: Date.now() });
+  }
+  saveState();
+  renderMessages();
+}
+
+
 // ---------- Settings modal (consolidates all sidebar config) ----------
 document.getElementById("settingsBtn").onclick = () => {
   document.getElementById("instructionsText").value = customInstructions;
@@ -1182,7 +1252,12 @@ async function sendMessage(){
   saveState();
   renderSidebar();
   renderMessages();
-  runCompletion();
+
+  if (imageGenMode) {
+    await generateImage(text);
+  } else {
+    runCompletion();
+  }
 }
 
 async function runCompletion(){
